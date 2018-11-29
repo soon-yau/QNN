@@ -63,7 +63,7 @@ def _get_file_names():
 
 def read_pickle_from_file(filename):
   with tf.gfile.Open(filename, 'rb') as f:
-    data_dict = pickle.load(f)
+    data_dict = pickle.load(f, encoding='latin1')
   return data_dict
 
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--data-dir',
       type=str,
-      default='',
+      default='data/cifar-10-data',
       help='Directory to download and extract CIFAR-10 to.')
 
   args = parser.parse_args()

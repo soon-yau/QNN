@@ -1,6 +1,6 @@
 import tensorflow as tf 
 from functools import partial
-
+import sys
 class MobileNet():
     def __init__(self, num_class, num_bits=None):
         self.num_class = num_class
@@ -40,6 +40,7 @@ class MobileNet():
             if bias:
                 b = tf.get_variable('bias', [n_output_plane])
                 output =  tf.nn.bias_add(output, b)
+        tf.logging.info('depthwise output tensor: %s'%x.get_shape())
 
         return output
 
@@ -67,7 +68,7 @@ class MobileNet():
             if bias:
                 b = tf.get_variable('bias', [n_output_plane])
                 output =  tf.nn.bias_add(output, b)
-
+        tf.logging.info('conv2d output tensor: %s'%x.get_shape())
         return output
 
     def separable_conv2d(self, 
@@ -110,20 +111,22 @@ class MobileNet():
         x = self.separable_conv2d(x, 3, [32, 64], 1, name='separable_1')
         x = self.separable_conv2d(x, 3, [64, 128], 2, name='separable_2')
         x = self.separable_conv2d(x, 3, [128, 128], 1, name='separable_3')
-        x = self.separable_conv2d(x, 3, [128, 256], 1, name='separable_4')
+        x = self.separable_conv2d(x, 3, [128, 256], 2, name='separable_4')
         x = self.separable_conv2d(x, 3, [256, 256], 1, name='separable_5')
-        x = self.separable_conv2d(x, 3, [256, 512], 1, name='separable_6')
+        x = self.separable_conv2d(x, 3, [256, 512], 2, name='separable_6')
         x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_7')
         x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_8')
         x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_9')
         x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_10')
         x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_11')
-        x = self.separable_conv2d(x, 3, [512, 512], 1, name='separable_12')
-        x = self.separable_conv2d(x, 3, [512, 1024], 1, name='separable_13')
-        x = self.separable_conv2d(x, 3, [1024, 1024], 1, name='separable_14')
+        x = self.separable_conv2d(x, 3, [512, 1024], 2, name='separable_12')
+        x = self.separable_conv2d(x, 3, [1024, 1024], 1, name='separable_13')
 
-        x = tf.layers.average_pooling2d(x, pool_size=7, strides=1)
+        #x = tf.layers.average_pooling2d(x, pool_size=7, strides=1)
         x = self.conv2d(x, self.num_class, 1,1, name='fc')
-        x = tf.reshape(x, [1, -1])
+        x = tf.squeeze(x, [1, 2], 'spatial_squeeze')
 
+        x_shape = x.get_shape().as_list()
+        x_shape_tensor = x.get_shape()
+        tf.logging.info("output tensor: %s", x.get_shape())
         return x
