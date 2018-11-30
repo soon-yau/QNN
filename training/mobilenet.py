@@ -2,12 +2,13 @@ import tensorflow as tf
 from functools import partial
 import sys
 class MobileNet():
-    def __init__(self, num_class, num_bits=None):
+    def __init__(self, num_class, is_training, num_bits=None):
         self.num_class = num_class
         self.num_bits = num_bits
         self.relu6 = partial(self._relu6, num_bits)
         self.conv2d = partial(self._conv2d, num_bits)
         self.depthwise_conv2d = partial(self._depthwise_conv2d, num_bits)
+        self.is_training = is_training
 
     def _relu6(self, num_bits, x):
         with tf.variable_scope("act"):
@@ -55,7 +56,7 @@ class MobileNet():
             name='depthwise_conv2d'):
         with tf.variable_scope(name):
             n_input_plane = x.get_shape().as_list()[3]
-            w_dim = [kernel_size, kernel_size, n_input_plane, n_output_plane]
+            w_dim = [kernel_size, kernel_size, n_output_plane, 1]
             w = tf.get_variable("weight", w_dim, 
                 initializer=tf.contrib.layers.xavier_initializer_conv2d())
             if num_bits:
@@ -87,7 +88,7 @@ class MobileNet():
                     bias, 
                     padding)
 
-            x = tf.layers.batch_normalization(x)
+            x = tf.layers.batch_normalization(x, training=self.is_training)
             x = self.relu6(x)
 
             x = self.conv2d(x, 
@@ -96,7 +97,7 @@ class MobileNet():
                     strides=1, 
                     bias=bias, 
                     padding=padding)
-            x = tf.layers.batch_normalization(x)
+            x = tf.layers.batch_normalization(x, training=self.is_training)
             x = self.relu6(x)
         return x
 
@@ -105,7 +106,7 @@ class MobileNet():
         x = x/128. - 1
 
         x = self.conv2d(x, 32, 3, 2)
-        x = tf.layers.batch_normalization(x)
+        x = tf.layers.batch_normalization(x, training=self.is_training)
         x = self.relu6(x)
 
         x = self.separable_conv2d(x, 3, [32, 64], 1, name='separable_1')

@@ -50,8 +50,10 @@ def input_specs(mode, num_epochs):
 
 def _model_fn(num_bits, features, labels, mode, params):
 
+
+    is_training = True if mode==tf.estimator.ModeKeys.TRAIN else False
     # create model
-    model = MobileNet(10, num_bits)
+    model = MobileNet(10, is_training, num_bits)
 
     # forward pass
     logits = model.forward_pass(features)
@@ -107,14 +109,18 @@ def train(num_bits, num_epochs):
     # create input spec
     train_spec = input_specs('train', num_epochs)
     eval_spec = input_specs('eval', num_epochs)
+
     # Session config
+    
     sess_config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=True,
         gpu_options=tf.GPUOptions(force_gpu_compatible=True))
 
     run_config = tf.estimator.RunConfig(
-        session_config=sess_config, model_dir=config.job_dir, save_summary_steps=100)
+        session_config=tf.ConfigProto(), 
+        model_dir=config.job_dir, 
+        save_summary_steps=100)
 
     # Create estimator
     estimator = tf.estimator.Estimator(
