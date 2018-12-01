@@ -41,7 +41,7 @@ class MobileNet():
             if bias:
                 b = tf.get_variable('bias', [n_output_plane])
                 output =  tf.nn.bias_add(output, b)
-        tf.logging.info('depthwise output tensor: %s'%x.get_shape())
+        #tf.logging.info('conv2d output tensor: %s'%x.get_shape())
 
         return output
 
@@ -69,7 +69,7 @@ class MobileNet():
             if bias:
                 b = tf.get_variable('bias', [n_output_plane])
                 output =  tf.nn.bias_add(output, b)
-        tf.logging.info('conv2d output tensor: %s'%x.get_shape())
+        #tf.logging.info('depthwise output tensor: %s'%x.get_shape())
         return output
 
     def separable_conv2d(self, 
