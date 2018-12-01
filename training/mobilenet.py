@@ -9,7 +9,7 @@ class MobileNet():
         self.conv2d = partial(self._conv2d, num_bits)
         self.depthwise_conv2d = partial(self._depthwise_conv2d, num_bits)
         self.is_training = is_training
-
+        tf.logging.info("Creating graph. is_training=%s"%(self.is_training))
     def _relu6(self, num_bits, x):
         with tf.variable_scope("act"):
             x = tf.nn.relu6(x)
@@ -124,6 +124,7 @@ class MobileNet():
         x = self.separable_conv2d(x, 3, [1024, 1024], 1, name='separable_13')
 
         #x = tf.layers.average_pooling2d(x, pool_size=7, strides=1)
+        x = tf.layers.dropout(x, training=self.is_training)
         x = self.conv2d(x, self.num_class, 1,1, name='fc')
         x = tf.squeeze(x, [1, 2], 'spatial_squeeze')
 
