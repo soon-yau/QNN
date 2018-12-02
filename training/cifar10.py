@@ -102,14 +102,18 @@ class Cifar10DataSet(object):
       image = tf.image.resize_image_with_crop_or_pad(image, 40, 40)
       image = tf.random_crop(image, [HEIGHT, WIDTH, DEPTH])
       image = tf.image.random_flip_left_right(image)
+      image = tf.image.random_brightness(image, max_delta=63)
+      image = tf.image.random_contrast(image, lower=0.2, upper=1.8)
+
+    image = tf.image.per_image_standardization(image)
     return image
 
   @staticmethod
   def num_examples_per_epoch(subset='train'):
     if subset == 'train':
-      return 45000
-    elif subset == 'validation':
-      return 5000
+      return 50000
+    #elif subset == 'validation':
+    #  return 5000
     elif subset == 'eval':
       return 10000
     else:

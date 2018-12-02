@@ -1,15 +1,18 @@
 import tensorflow as tf 
 from functools import partial
 import sys
+import numpy as np
+
 class MobileNet():
-    def __init__(self, num_class, is_training, num_bits=None):
+    def __init__(self, num_class, is_training, num_bits=None, width_multiplier=1):
         self.num_class = num_class
         self.num_bits = num_bits
         self.relu6 = partial(self._relu6, num_bits)
         self.conv2d = partial(self._conv2d, num_bits)
         self.depthwise_conv2d = partial(self._depthwise_conv2d, num_bits)
         self.is_training = is_training
-        tf.logging.info("Creating graph. is_training=%s"%(self.is_training))
+        self.width_multiplier = width_multiplier
+        tf.logging.info("Creating graph. is_training=%s, width multiplier=%.1f"%(self.is_training, self.width_multiplier))
     def _relu6(self, num_bits, x):
         with tf.variable_scope("act"):
             x = tf.nn.relu6(x)
@@ -54,6 +57,7 @@ class MobileNet():
             bias=False,
             padding='SAME',
             name='depthwise_conv2d'):
+
         with tf.variable_scope(name):
             n_input_plane = x.get_shape().as_list()[3]
             w_dim = [kernel_size, kernel_size, n_output_plane, 1]
@@ -81,8 +85,9 @@ class MobileNet():
             padding='SAME',
             name='separable_conv2d'):
         with tf.variable_scope(name):
+            filter_depth = self.width_multiplier*np.array(filters)
             x = self.depthwise_conv2d(x, 
-                    filters[0], 
+                    int(filter_depth[0]), 
                     kernel_size, 
                     strides, 
                     bias, 
@@ -92,7 +97,7 @@ class MobileNet():
             x = self.relu6(x)
 
             x = self.conv2d(x, 
-                    filters[1], 
+                    int(filter_depth[1]), 
                     kernel_size=1, 
                     strides=1, 
                     bias=bias, 
@@ -103,9 +108,8 @@ class MobileNet():
 
     def forward_pass(self, x):
 
-        x = x/128. - 1
-
-        x = self.conv2d(x, 32, 3, 2)
+        filter_depth = np.int(self.width_multiplier*32)
+        x = self.conv2d(x, filter_depth, 3, 2)
         x = tf.layers.batch_normalization(x, training=self.is_training)
         x = self.relu6(x)
 
@@ -123,12 +127,12 @@ class MobileNet():
         x = self.separable_conv2d(x, 3, [512, 1024], 2, name='separable_12')
         x = self.separable_conv2d(x, 3, [1024, 1024], 1, name='separable_13')
 
-        #x = tf.layers.average_pooling2d(x, pool_size=7, strides=1)
+        pool_size = x.get_shape().as_list()[1]
+        x = tf.layers.average_pooling2d(x, pool_size=pool_size, strides=1)
         x = tf.layers.dropout(x, training=self.is_training)
         x = self.conv2d(x, self.num_class, 1,1, name='fc')
         x = tf.squeeze(x, [1, 2], 'spatial_squeeze')
 
         x_shape = x.get_shape().as_list()
-        x_shape_tensor = x.get_shape()
         tf.logging.info("output tensor: %s", x.get_shape())
         return x

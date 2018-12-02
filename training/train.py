@@ -42,7 +42,7 @@ def input_specs(mode, num_epochs):
         spec = tf.estimator.EvalSpec(
                         input_fn=eval_input_fn, 
                         steps=eval_steps,
-                        throttle_secs=200)
+                        throttle_secs=100)
     else:
         raise ValueError("Invalid input mode: %s"%mode)
 
@@ -54,7 +54,7 @@ def _model_fn(num_bits, features, labels, mode, params):
     is_training =  (mode==tf.estimator.ModeKeys.TRAIN)
     # create model
     num_classes = 10
-    model = MobileNet(num_classes, is_training, num_bits)
+    model = MobileNet(num_classes, is_training, num_bits, width_multiplier=0.5)
 
     # forward pass
     logits = model.forward_pass(features)
@@ -83,7 +83,7 @@ def _model_fn(num_bits, features, labels, mode, params):
             global_step, decay_steps, decay_rate)
 
         # optimize loss
-        optimizer = tf.train.RMSPropOptimizer(learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
@@ -93,7 +93,7 @@ def _model_fn(num_bits, features, labels, mode, params):
         # logging
         tf.summary.scalar("accuracy", accuracy[1])
         tf.summary.scalar("learning_rate", learning_rate)
-
+        
         # printing
         tensors_to_log = {'learning_rate': learning_rate, 
                           'loss': loss, 
@@ -161,5 +161,5 @@ if __name__ == '__main__':
     # no quantization
     train(None, config.num_epoch)
 
-    for num_bits in range(8,1,-1):
-        train(num_bits, config.num_epoch)
+    #for num_bits in range(8,1,-1):
+    #    train(num_bits, config.num_epoch)
