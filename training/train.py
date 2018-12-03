@@ -148,7 +148,7 @@ def train(num_bits, num_epochs):
     subdir=config.quant_method
 
     if num_bits is None:
-        subdir+= "/numbits_0"
+        subdir+= "/numbits_9"
     else:
         subdir+= "/numbits_%d"%num_bits
 
