@@ -1,3 +1,7 @@
+#quant_method='tensorflow' 
+quant_method='custom'
+
+width_multiplier=0.75
 data_dir="data/cifar-10-data"
 job_dir="log"
 train_batch_size=256

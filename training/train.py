@@ -54,7 +54,8 @@ def _model_fn(num_bits, features, labels, mode, params):
     is_training =  (mode==tf.estimator.ModeKeys.TRAIN)
     # create model
     num_classes = 10
-    model = MobileNet(num_classes, is_training, num_bits, width_multiplier=0.5)
+    model = MobileNet(num_classes, is_training, num_bits, 
+                      width_multiplier=config.width_multiplier, quant_mode=config.quant_method)
 
     # forward pass
     logits = model.forward_pass(features)
@@ -73,6 +74,13 @@ def _model_fn(num_bits, features, labels, mode, params):
         logits=logits, labels=labels)     
 
     if mode==tf.estimator.ModeKeys.TRAIN:
+
+        # add fake_quant to 'normal' graph
+        if config.quant_method=='tensorflow':
+            print("TF quantize create training graph")
+            g = tf.get_default_graph()
+            tf.contrib.quantize.create_training_graph(input_graph=g, quant_delay=0)
+
         # learning rate decay
         global_step = tf.train.get_global_step()
         steps_per_epoch = num_training_per_epoch/config.train_batch_size
@@ -85,10 +93,12 @@ def _model_fn(num_bits, features, labels, mode, params):
         # optimize loss
         optimizer = tf.train.AdamOptimizer(learning_rate)
 
+
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             train_op = optimizer.minimize(loss=loss, 
                                           global_step=tf.train.get_global_step())
+
 
         # logging
         tf.summary.scalar("accuracy", accuracy[1])
@@ -111,6 +121,10 @@ def _model_fn(num_bits, features, labels, mode, params):
             eval_metric_ops=metrics)
 
     elif mode==tf.estimator.ModeKeys.EVAL:
+        if config.quant_method=='tensorflow':
+            g = tf.get_default_graph()
+            tf.contrib.quantize.create_eval_graph(input_graph=g)
+
         tf.summary.scalar("accuracy", accuracy[1])
         eval_tensors_to_log = {'eval_loss': loss, 
                           'eval_accuracy': accuracy[1]}
@@ -131,11 +145,12 @@ def train(num_bits, num_epochs):
     train_spec = input_specs('train', num_epochs)
     eval_spec = input_specs('eval', num_epochs)
 
+    subdir=config.quant_method
 
     if num_bits is None:
-        subdir = "numbits_0"
+        subdir+= "/numbits_0"
     else:
-        subdir = "numbits_%d"%num_bits
+        subdir+= "/numbits_%d"%num_bits
 
     log_folder = os.path.join(config.job_dir, subdir)
     run_config = tf.estimator.RunConfig(
@@ -161,5 +176,5 @@ if __name__ == '__main__':
     # no quantization
     train(None, config.num_epoch)
 
-    #for num_bits in range(8,1,-1):
-    #    train(num_bits, config.num_epoch)
+    for num_bits in range(8,1,-1):
+        train(num_bits, config.num_epoch)

@@ -4,7 +4,8 @@ import sys
 import numpy as np
 
 class MobileNet():
-    def __init__(self, num_class, is_training, num_bits=None, width_multiplier=1):
+    def __init__(self, num_class, is_training, num_bits=None, width_multiplier=1, quant_mode='tensorflow'):
+        self.add_fake_quant = quant_mode=='custom' and num_bits is not None
         self.num_class = num_class
         self.num_bits = num_bits
         self.relu6 = partial(self._relu6, num_bits)
@@ -12,11 +13,11 @@ class MobileNet():
         self.depthwise_conv2d = partial(self._depthwise_conv2d, num_bits)
         self.is_training = is_training
         self.width_multiplier = width_multiplier
-        tf.logging.info("Creating graph. is_training=%s, width multiplier=%.1f"%(self.is_training, self.width_multiplier))
+        tf.logging.info("Creating graph. is_training=%s, width multiplier=%.2f add_fake_quant=%s"%(self.is_training, self.width_multiplier, self.add_fake_quant))
     def _relu6(self, num_bits, x):
         with tf.variable_scope("act"):
             x = tf.nn.relu6(x)
-            if num_bits is not None:
+            if self.add_fake_quant:
                 x = tf.fake_quant_with_min_max_vars(x, 0.0, 6.0, num_bits)
         return x
 
@@ -34,7 +35,7 @@ class MobileNet():
             w_dim = [kernel_size, kernel_size, n_input_plane, n_output_plane]
             w = tf.get_variable("weight", w_dim, 
                 initializer=tf.contrib.layers.xavier_initializer_conv2d())
-            if num_bits:
+            if self.add_fake_quant:
                 w_min = tf.reduce_min(w)
                 w_max = tf.reduce_max(w)
                 w = tf.fake_quant_with_min_max_vars(w, w_min, w_max, num_bits)
@@ -63,7 +64,7 @@ class MobileNet():
             w_dim = [kernel_size, kernel_size, n_output_plane, 1]
             w = tf.get_variable("weight", w_dim, 
                 initializer=tf.contrib.layers.xavier_initializer_conv2d())
-            if num_bits:
+            if self.add_fake_quant:
                 w_min = tf.reduce_min(w)
                 w_max = tf.reduce_max(w)
                 w = tf.fake_quant_with_min_max_vars(w, w_min, w_max, num_bits)
