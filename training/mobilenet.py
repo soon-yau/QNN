@@ -2,12 +2,14 @@ import tensorflow as tf
 from functools import partial
 import sys
 import numpy as np
+import config
 
 class MobileNet():
-    def __init__(self, num_class, is_training, num_bits=None, width_multiplier=1, quant_mode='tensorflow'):
+    def __init__(self, num_class, is_training, num_bits=None, width_multiplier=1, quant_mode='tensorflow', conv2d_regularizer=None):
         self.add_fake_quant = quant_mode=='custom' and num_bits is not None
         self.num_class = num_class
         self.num_bits = num_bits
+        self.conv2d_regularizer=conv2d_regularizer
         self.relu6 = partial(self._relu6, num_bits)
         self.conv2d = partial(self._conv2d, num_bits)
         self.depthwise_conv2d = partial(self._depthwise_conv2d, num_bits)
@@ -34,7 +36,8 @@ class MobileNet():
             n_input_plane = x.get_shape().as_list()[3]
             w_dim = [kernel_size, kernel_size, n_input_plane, n_output_plane]
             w = tf.get_variable("weight", w_dim, 
-                initializer=tf.contrib.layers.xavier_initializer_conv2d())
+                initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                regularizer=self.conv2d_regularizer)
             if self.add_fake_quant:
                 w_min = tf.reduce_min(w)
                 w_max = tf.reduce_max(w)
