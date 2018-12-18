@@ -52,10 +52,16 @@ def _model_fn(num_bits, features, labels, mode, params):
 
 
     is_training =  (mode==tf.estimator.ModeKeys.TRAIN)
+
+    # weight reguralization
+    regularizer = tf.contrib.layers.l2_regularizer(scale=config.weight_decay)
     # create model
     num_classes = 10
-    model = MobileNet(num_classes, is_training, num_bits, 
-                      width_multiplier=config.width_multiplier, quant_mode=config.quant_method)
+    model = MobileNet(num_classes, 
+                      is_training, num_bits, 
+                      width_multiplier=config.width_multiplier, 
+                      quant_mode=config.quant_method,
+                      conv2d_regularizer=regularizer)
 
     # forward pass
     logits = model.forward_pass(features)
@@ -72,6 +78,12 @@ def _model_fn(num_bits, features, labels, mode, params):
     # loss function
     loss = tf.losses.sparse_softmax_cross_entropy(
         logits=logits, labels=labels)     
+
+
+    # reguralization loss
+    reg_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    reg_term = tf.contrib.layers.apply_regularization(regularizer, reg_variables)
+    loss += reg_term
 
     if mode==tf.estimator.ModeKeys.TRAIN:
 
@@ -90,6 +102,7 @@ def _model_fn(num_bits, features, labels, mode, params):
         learning_rate = tf.train.exponential_decay(config.learning_rate, 
             global_step, decay_steps, decay_rate)
 
+        learning_rate = tf.maximum(learning_rate, config.learning_rate*0.01)
         # optimize loss
         optimizer = tf.train.AdamOptimizer(learning_rate)
 
